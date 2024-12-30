@@ -7,106 +7,27 @@ from IPython import display
 
 # Constants
 initX, initY = 0, 0
-targetX, targetY = 24, 20
-secondTargetX, secondTargetY = 30, 45
+targetX, targetY = 20, 0
 currentHeading = 0
-targetHeading = 85
 tolerance = 0.1
 Kp_lin = 50
-Kp_turn = 90
+Ki_lin = 0.001
 Kd_lin = 2
-Kd_turn = 200
 
-Kv_lin = 80
-Ka_lin = 20
 
 numOfFrames = 120
 dt = 50 
 
 currentPos = [initX, initY]
 targetPos = [targetX, targetY]
-secondTargetPos = [secondTargetX, secondTargetY]
-
-def find_min_angle (targetHeading, currentHeading):
-  turnAngle = targetHeading - currentHeading
-  if turnAngle > 180 or turnAngle < -180 :
-    turnAngle = -1 * np.sign(turnAngle) * (360 - abs(turnAngle))
-  return turnAngle
-
-def sgn (num):
-  if num >= 0:
-    return 1
-  else:
-    return -1
 
 
-prevLinearError = 0
-prevAngularError = 0
-prevLinearVelocity = 0
-prevAngularVelocity = 0
-settlingThreshold = 7.5
-settling = False
+def kevin_is_homo(currentPos, currentHeading, targetPos, Kp_lin, linMax=127):
+  target_x = targetPos[0]
+  error = target_x - currentPos[0]
+  linVel = error * Kp_lin
 
-
-def move_to_pose_step(currentPos, currentHeading, targetPos, Kp_lin, Kp_turn, Kv_lin, Ka_lin, r=1, turnMax=127, linMax=127):
-    global prevAngularError
-    global prevLinearError
-    global prevLinearVelocity
-    global settling
-    global settlingThreshold
-
-    currentX, currentY = currentPos[0], currentPos[1]
-    targetX, targetY = targetPos[0], targetPos[1]
-
-    absTargetAngle = math.atan2((targetY - currentY), (targetX - currentX)) * 180 / pi
-    distance = math.sqrt((targetX - currentX) ** 2 + (targetY - currentY) ** 2)
-
-    if abs(distance) < settlingThreshold and settling == False:
-      print("Settinlg")
-      settling = True
-      turnMax = max(abs(prevAngularVelocity), 10)
-      print(turnMax)
-
-    if absTargetAngle < 0:
-        absTargetAngle += 360
-
-    turnError = absTargetAngle - currentHeading
-    if (turnError > 180 or turnError < -180):
-        turnError = -1 * sgn(turnError) * (360 - abs(turnError))
-
-    turnError *= (math.pi / 180)
-
-    linearDerivative = distance - prevLinearError
-    angularDerivative = turnError - prevAngularError
-
-    # Feedforward control
-    currentLinearVelocity = linearDerivative
-    currentLinearAcceleration = (currentLinearVelocity - prevLinearVelocity)
-
-    turnVel = (Kp_turn * turnError) + (angularDerivative * Kd_turn)
-    linearVel = (Kp_lin * distance) + (linearDerivative * Kd_lin) + (Kv_lin * currentLinearVelocity) + (Ka_lin * currentLinearAcceleration)
-
-    linearVel = linearVel * math.cos(turnError)
-
-    if linearVel > linMax:
-       linearVel = linMax
-    if linearVel < -linMax:
-       linearVel = -linMax
-
-    if turnVel > turnMax:
-       turnVel = turnMax
-    if turnVel < -turnMax:
-       turnVel = -turnMax
-
-
-    prevLinearError = distance
-    prevAngularError = turnError
-    prevLinearVelocity = currentLinearVelocity
-    prevAngularVelocity
-
-    return linearVel, turnVel
-
-
+  return linVel, 0
 
 fig = plt.figure()
 trajectory_lines = plt.plot([], '--', color='black')
@@ -150,7 +71,7 @@ def draw_square (length, center, orientation):
 def robot_animation (frame) :
   global currentPos, currentHeading, f
 
-  linearVel, turnVel = move_to_pose_step (currentPos, currentHeading, targetPos, Kp_lin, Kp_turn, Kv_lin, Ka_lin)
+  linearVel, turnVel = kevin_is_homo(currentPos, currentHeading, targetPos, Kp_lin)
 
   if f < 40:
     linearVel, turnVel = 0, 0

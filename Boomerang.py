@@ -9,7 +9,7 @@ import time
 initX, initY = 0, 0
 currentHeading = 90
 tolerance = 0.1
-Kp_lin = 15
+Kp_lin = 5
 Kp_turn = 10
 M_PI = 3.14159
 canReverse = False
@@ -18,8 +18,8 @@ numOfFrames = 120
 dt = 50 
 noPose = False
 
-targetX, targetY = -7, -8
-targetHeading = 360
+targetX, targetY = 7, 7
+targetHeading = 90
 minError = 1
 
 currentPos = [initX, initY]
@@ -137,19 +137,12 @@ def new_boomerang(currentPos, currentHeading, targetPos, targetHeading, Kp_lin, 
         carrot_point_x = targetX - h * math.cos(at) * 0.8
         carrot_point_y = targetY - h * math.sin(at) * 0.8
 
-    print(f"current angle: {currentHeading}")
-    print(f"target angle: {targetHeading}")
-
     absTargetAngle = math.atan2(carrot_point_y - currentY, carrot_point_x - currentX) * 180 / math.pi
     if absTargetAngle < 0:
         absTargetAngle += 360
     turnError = absTargetAngle - currentHeading
     if turnError > 180 or turnError < -180:
         turnError = -1 * math.copysign(360 - abs(turnError), turnError)
-
-    print(f"current angle: {currentHeading}")
-    print(f"target angle: {targetHeading}")
-    print(f"abs target angle: {absTargetAngle}")
 
     linear_error = math.sqrt((targetX - currentX) ** 2 + (targetY - currentY) ** 2)
     angular_error = turnError
@@ -238,15 +231,49 @@ def draw_square (length, center, orientation):
   rect_line_3.set_data([corner3[0], corner4[0]], [corner3[1], corner4[1]])
   rect_line_4.set_data([corner4[0], corner1[0]], [corner4[1], corner1[1]])
 
+####################################################################################################################################################################################################################################################################################################
 
 def robot_animation (frame) :
   global currentPos, currentHeading, f, h
-  linearVel, turnVel = new_boomerang(currentPos, currentHeading, targetPos, targetHeading, Kp_lin, Kp_turn)
+  linearVel, turnVel = backwards_new_boomerang(currentPos, currentHeading, targetPos, targetHeading, Kp_lin, Kp_turn)
   if f < 20:
     linearVel, turnVel = 0, 0
 
   if h < 28:
-     linearVel = 0
+     # linearVel = 0
+     pass
+
+  maxLinVelfeet = 200 / 60 * pi*4 / 12
+  maxTurnVelDeg = 200 / 60 * pi*4 / 9 *180/pi
+  leftSideVel = linearVel - turnVel
+  rightSideVel = linearVel + turnVel
+  print(f"l_vel: {leftSideVel}")
+  print(f"r_vel: {rightSideVel}")
+  stepDis = (leftSideVel + rightSideVel)/100 * maxLinVelfeet * dt/1000
+  currentPos[0] += stepDis * np.cos(currentHeading*pi/180)
+  currentPos[1] += stepDis * np.sin(currentHeading*pi/180)
+  currentHeading += (rightSideVel - leftSideVel)/2/100 * maxTurnVelDeg * dt/1000
+
+  currentHeading = currentHeading%360
+  if currentHeading < 0: currentHeading += 360
+
+  xs.append(currentPos[0])
+  ys.append(currentPos[1])
+
+  draw_square(0.75, currentPos, currentHeading)
+  heading_line.set_data ([currentPos[0], currentPos[0] + 0.75*np.cos(currentHeading/180*pi)], [currentPos[1], currentPos[1] + 0.75*np.sin(currentHeading/180*pi)])
+  pose.set_data ((currentPos[0], currentPos[1]))
+  trajectory_line.set_data (xs, ys)
+  f += 1
+  h += 1
+
+####################################################################################################################################################################################################################################################################################################
+
+def lateral_pid(frame) :
+  global currentPos, currentHeading, f, h
+  linearVel, turnVel = 20, 0
+  if f < 20:
+    linearVel, turnVel = 0, 0
 
   maxLinVelfeet = 200 / 60 * pi*4 / 12
   maxTurnVelDeg = 200 / 60 * pi*4 / 9 *180/pi
@@ -268,11 +295,39 @@ def robot_animation (frame) :
   pose.set_data ((currentPos[0], currentPos[1]))
   trajectory_line.set_data (xs, ys)
   f += 1
-  h += 1
 
+####################################################################################################################################################################################################################################################################################################
 
+def turn_pid(frame) :
+  global currentPos, currentHeading, f, h
+  linearVel, turnVel = 0, 20
+  if f < 20:
+    linearVel, turnVel = 0, 0
 
+  maxLinVelfeet = 200 / 60 * pi*4 / 12
+  maxTurnVelDeg = 200 / 60 * pi*4 / 9 *180/pi
+  leftSideVel = linearVel - turnVel
+  rightSideVel = linearVel + turnVel
+  stepDis = (leftSideVel + rightSideVel)/100 * maxLinVelfeet * dt/1000
+  currentPos[0] += stepDis * np.cos(currentHeading*pi/180)
+  currentPos[1] += stepDis * np.sin(currentHeading*pi/180)
+  currentHeading += (rightSideVel - leftSideVel)/2/100 * maxTurnVelDeg * dt/1000
 
+  currentHeading = currentHeading%360
+  if currentHeading < 0: currentHeading += 360
+
+  print(f"current heading: {currentHeading}")
+
+  xs.append(currentPos[0])
+  ys.append(currentPos[1])
+
+  draw_square(0.75, currentPos, currentHeading)
+  heading_line.set_data ([currentPos[0], currentPos[0] + 0.75*np.cos(currentHeading/180*pi)], [currentPos[1], currentPos[1] + 0.75*np.sin(currentHeading/180*pi)])
+  pose.set_data ((currentPos[0], currentPos[1]))
+  trajectory_line.set_data (xs, ys)
+  f += 1
+
+####################################################################################################################################################################################################################################################################################################
 
 def turn_robot_animation (frame) :
   global currentPos, currentHeading, f
